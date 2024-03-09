@@ -1,6 +1,12 @@
 import { Effects, Text } from "@react-three/drei";
 import { Canvas, extend, useFrame } from "@react-three/fiber";
-import { ComponentPropsWithoutRef, Suspense, useRef, useState } from "react";
+import {
+  ComponentPropsWithoutRef,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { Group, Mesh, MeshStandardMaterial, Vector3 } from "three";
 
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
@@ -18,7 +24,7 @@ const WAVE_AMPLITUDE = 0.7;
 
 type CreditsProps = {
   lines: string[];
-  isPlaying: boolean;
+  playState: PlayState;
 };
 
 type CreditLineProps = ComponentPropsWithoutRef<"mesh">;
@@ -82,14 +88,14 @@ function CreditLine(props: CreditLineProps) {
 }
 
 function Credits(props: CreditsProps) {
-  const { isPlaying, lines } = props;
+  const { playState, lines } = props;
 
   const credits = useRef<Group>(null!);
 
   useFrame((state, delta) => {
-    if (isPlaying) {
+    if (playState === "playing") {
       credits.current.position.y += delta * SCROLL_SPEED;
-    } else {
+    } else if (playState === "reset") {
       credits.current.position.y = 0;
     }
   });
@@ -109,37 +115,61 @@ function Credits(props: CreditsProps) {
 }
 
 type PlayButtonProps = {
-  isPlaying: boolean;
-  onChange: (isPlaying: boolean) => void;
+  playState: PlayState;
+  onChange: (playState: PlayState) => void;
 };
 
 function PlayButton(props: PlayButtonProps) {
-  const { isPlaying, onChange } = props;
+  const { playState, onChange } = props;
+
+  const playButton = useRef<HTMLButtonElement>(null!);
 
   const soundcloudWidget = useRef(
     SC.Widget(document.querySelector("#soundcloudWidget"))
   );
 
-  function handleClick() {
-    if (isPlaying) {
-      soundcloudWidget.current.seekTo(0);
-      soundcloudWidget.current.pause();
-    } else {
-      soundcloudWidget.current.play();
-    }
+  function handlePlay() {
+    soundcloudWidget.current.play();
+    onChange("playing");
+  }
 
-    onChange(!isPlaying);
+  function handlePause() {
+    soundcloudWidget.current.pause();
+    onChange("paused");
+  }
+
+  function handleReset() {
+    soundcloudWidget.current.seekTo(0);
+    soundcloudWidget.current.pause();
+    onChange("reset");
+
+    playButton.current.focus();
+  }
+
+  function handlePlayPause() {
+    if (["paused", "reset"].includes(playState)) {
+      handlePlay();
+    } else {
+      handlePause();
+    }
   }
 
   return (
-    <button className="button-roll-credits" onClick={handleClick}>
-      {isPlaying ? "Reset" : "Roll Credits"}
-    </button>
+    <div className="button-roll-credits">
+      <button ref={playButton} onClick={handlePlayPause}>
+        {["paused", "reset"].includes(playState) ? "Roll Credits" : "Pause"}
+      </button>
+      {playState !== "reset" ? (
+        <button onClick={handleReset}>Reset</button>
+      ) : null}
+    </div>
   );
 }
 
+type PlayState = "paused" | "playing" | "reset";
+
 export function Scene() {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [playState, setPlayState] = useState<PlayState>("paused");
 
   return (
     <>
@@ -150,7 +180,7 @@ export function Scene() {
           </Effects>
 
           <Credits
-            isPlaying={isPlaying}
+            playState={playState}
             lines={[
               "和製漢字",
               "和製漢字",
@@ -292,7 +322,7 @@ export function Scene() {
         </Suspense>
       </Canvas>
 
-      <PlayButton isPlaying={isPlaying} onChange={setIsPlaying} />
+      <PlayButton playState={playState} onChange={setPlayState} />
     </>
   );
 }
