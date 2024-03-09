@@ -1,17 +1,25 @@
 import { Effects, Text } from "@react-three/drei";
-import { Canvas, extend, useFrame } from "@react-three/fiber";
-import {
-  ComponentPropsWithoutRef,
-  Suspense,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Canvas, Node, extend, useFrame } from "@react-three/fiber";
+import { ComponentPropsWithoutRef, Suspense, useRef, useState } from "react";
 import { Group, Mesh, MeshStandardMaterial, Vector3 } from "three";
 
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 
 extend({ UnrealBloomPass });
+
+// Add types to ThreeElements elements so primitives pick up on it
+declare module "@react-three/fiber" {
+  interface ThreeElements {
+    unrealBloomPass: Node<UnrealBloomPass, typeof UnrealBloomPass>;
+  }
+}
+
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    SC: any;
+  }
+}
 
 const SCROLL_SPEED = 1;
 const BLOOM_BROAD_RADIUS = 0.3;
@@ -92,7 +100,7 @@ function Credits(props: CreditsProps) {
 
   const credits = useRef<Group>(null!);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (playState === "playing") {
       credits.current.position.y += delta * SCROLL_SPEED;
     } else if (playState === "reset") {
@@ -125,7 +133,7 @@ function PlayButton(props: PlayButtonProps) {
   const playButton = useRef<HTMLButtonElement>(null!);
 
   const soundcloudWidget = useRef(
-    SC.Widget(document.querySelector("#soundcloudWidget"))
+    window.SC.Widget(document.querySelector("#soundcloudWidget"))
   );
 
   function handlePlay() {
